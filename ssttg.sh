@@ -16,14 +16,6 @@ G_DEF_CONFIG_FILEPATH="${DIRNAME}/ssttg_def_cfg.ini"
 
 source $DIRNAME/common_bash_functions.sh
 
-#----[prefix-checks]---------------------------------------------------------
-
-if [[ ! -d $SSTTG_D_WORK_AREA ]]
-then
-    error_message "environment variable SSTTG_D_WORK_AREA not defined"
-    exit 1
-fi
-
 #----[options]---------------------------------------------------------------
 
 OPT_OP="transcribe"
@@ -68,8 +60,8 @@ SYNOPSIS
 
 DESCRIPTION
 
-    This script performs speech to text transcription using the 
-    google api.
+    This script performs streaming speech to text transcription using 
+    the google api (https://cloud.google.com/speech-to-text/docs/streaming-recognize)
 
     The filepaths specified for the -i, -o, -d, -a, and -c options 
     must have a common ancestor and this must be mapped to 
@@ -96,13 +88,13 @@ OPTIONS
 
     -i  $G_MAPPED_ROOT_PATH/.../input_media_file_path
         A .mp4 or .ts file or any other format recognized by ffmpeg.
-        This is mandatory.
+        This is mandatory for all operations except 'gencfg'.
 
     -o  $G_MAPPED_ROOT_PATH/.../output_file_path
         The format is dependent in the operation specified (see -O option).
         This is optional. defaults are as follows:
         +------------+-------------------+
-        | operation  | name              |
+        | operation  | output_file_name  |
         +------------+-------------------+
         | gencfg     | ssttg_def_cfg.ini |
         | pcm        | out.s16le.pcm     |
@@ -121,9 +113,10 @@ OPTIONS
 
     -c  $G_MAPPED_ROOT_PATH/.../transcribe_config_file_path.ini
         The configuration file used for control of the transcription
-        algorithm.
-        This is mandatory if the operation is 'transcribe' and ignored 
-        otherwise.
+        algorithm. 
+        This is used if the operation is 'transcribe'.
+        This is optional (i.e. optional even if the operation is 'transcribe'
+        in which case it uses a default configuration 'coded' internally).
 
     -x
         Enables 'set -x' for this script.
@@ -145,6 +138,7 @@ EOD
 # MAIN
 #----------------------------------------------------------------------------
 
+export PATH=$PATH:$DIRNAME
 export PYTHONPATH=$DIRNAME
 
 TEMP=`getopt -o "O:i:o:d:a:c:xh" -n "$0" -- "$@"`
@@ -174,16 +168,19 @@ case $OPT_OP in
         exit 1
 esac
 
-if [[ -n $OPT_INPUT_FILEPATH ]]
+if [[ $OPT_OP != "gencfg" ]]
 then
-    if [[ ! -f $OPT_INPUT_FILEPATH ]]
+    if [[ -n $OPT_INPUT_FILEPATH ]]
     then
-        error_message "file $OPT_INPUT_FILEPATH not present"
+        if [[ ! -f $OPT_INPUT_FILEPATH ]]
+        then
+            error_message "file $OPT_INPUT_FILEPATH not present"
+            exit 1
+        fi
+    else
+        error_message "-i option not specified"
         exit 1
     fi
-else
-    error_message "-i option not specified"
-    exit 1
 fi
 
 if [[ -z $OPT_OUTPUT_FILEPATH ]]
@@ -324,7 +321,7 @@ esac
 
 RET=$?
 
-stty sane
+#stty sane
 
 exit $RET
 
