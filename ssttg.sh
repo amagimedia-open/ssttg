@@ -257,8 +257,19 @@ then
     OPT_DURATION="-to $OPT_DURATION"
 fi
 
-
 #-----------------------------------------------------------
+
+if [[ ! -p $G_NAMED_PIPE_PATH ]]
+then
+    if ! mkfifo $G_NAMED_PIPE_PATH
+    then
+        error_message "creation of $G_NAMED_PIPE_PATH failed"
+        exit 2
+    fi
+
+    info_message "creation of $G_NAMED_PIPE_PATH succeeded"
+fi
+
 
 case $OPT_OP in
 
@@ -291,6 +302,17 @@ case $OPT_OP in
         #| dump packetized pcm |
         #+---------------------+
 
+        info_message "starting audio_depacketizer ..."
+        cat $G_NAMED_PIPE_PATH |\
+        audio_depacketizer \
+            -v \
+            -z \
+            1>$OPT_OUTPUT_FILEPATH \
+            2>$OPT_DEBUG_FILEPATH &
+        BG_PID=$!
+
+        info_message "starting ffmpeg|audio_packetizer ..."
+        sleep 2
         ffmpeg \
             -loglevel quiet \
             -i $OPT_INPUT_FILEPATH \
@@ -300,12 +322,13 @@ case $OPT_OP in
             -f s16le \
             pipe:1 |\
         audio_packetizer \
-            -z |\
-        audio_depacketizer \
-            -v \
-            -z \
-            1>$OPT_OUTPUT_FILEPATH \
-            2>$OPT_DEBUG_FILEPATH
+            -z > $G_NAMED_PIPE_PATH
+
+        stty sane
+
+        info_message "sleeping for 2 seconds ..."
+        sleep 2     # TODO: make it event based
+        kill_pid $BG_PID
         ;;
 
 
@@ -315,16 +338,27 @@ case $OPT_OP in
         #| perform transcription |
         #+-----------------------+
 
-        python3 ssttg.py \
-               -i $G_NAMED_PIPE_PATH \
-               -o $OPT_OUTPUT_FILEPATH \
-               -c $OPT_CONFIG_FILEPATH \
-               -a $OPT_AUTH_FILEPATH \
-               -f \
-               -v \
-               2>$OPT_DEBUG_FILEPATH &
-        TRANSCRIBE_PID=$!
+        DEPACK_VERBOSITY=""
+        DEPACK_VERBOSITY="-vv"
 
+        info_message "starting audio_depacketizer|transcriber ..."
+        cat $G_NAMED_PIPE_PATH |\
+        audio_depacketizer \
+            $DEPACK_VERBOSITY \
+            -z \
+            -f |\
+        python3 ssttg.py \
+            -i $G_NAMED_PIPE_PATH \
+            -o $OPT_OUTPUT_FILEPATH \
+            -c $OPT_CONFIG_FILEPATH \
+            -a $OPT_AUTH_FILEPATH \
+            -f \
+            -v \
+            2>$OPT_DEBUG_FILEPATH &
+        BG_PID=$!
+
+        info_message "starting ffmpeg|audio_packetizer ..."
+        sleep 2
         ffmpeg \
             -loglevel quiet \
             -re \
@@ -335,13 +369,12 @@ case $OPT_OP in
             -f s16le \
             pipe:1 |\
         audio_packetizer \
-            -z |\
-        audio_depacketizer \
-            -z \
-            -f > $G_NAMED_PIPE_PATH
+            -z > $G_NAMED_PIPE_PATH
 
+        info_message "end of input"
+        info_message "sleeping for 5 seconds ..."
         sleep 5     # TODO: make it event based
-        kill_pid $TRANSCRIBE_PID
+        kill_pid $BG_PID
         ;;
 esac
 

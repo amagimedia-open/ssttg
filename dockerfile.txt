@@ -50,10 +50,24 @@ RUN apt-get install -y moreutils
 #| PROJECT FILES |
 #+---------------+
 
-RUN  mkdir /ssttg
-
-COPY ./ /ssttg/
-RUN  gcc -o /ssttg/audio_packetizer   /ssttg/audio_packetizer.c
-RUN  gcc -o /ssttg/audio_depacketizer /ssttg/audio_depacketizer.c
-
-RUN tree /ssttg
+#RUN  mkdir /ssttg
+#
+#COPY \
+#  audio_depacketizer.c        \
+#  audio_packetizer.c          \
+#  build_docker_image.sh       \
+#  common_bash_functions.sh    \
+#  dockerfile.txt              \
+#  sstt_testclip_20_sec.mp4    \
+#  ssttg.py                    \
+#  ssttg.sh                    \
+#  ssttg_def_cfg.ini           \
+#  ssttg_run_bash_in_docker.sh \
+#  /ssttg/
+#
+#COPY test/ /ssttg/
+#
+#RUN  gcc -o /ssttg/audio_packetizer   /ssttg/audio_packetizer.c
+#RUN  gcc -o /ssttg/audio_depacketizer /ssttg/audio_depacketizer.c
+#
+#RUN tree /ssttg

@@ -325,11 +325,11 @@ dump_context
             "   input_is_fifo = %u\n"
             "   output_is_fifo = %u\n"
             "   <<state>>\n"
-            "   in_fp = %p\n"
             "   out_fd = %d\n"
             "   num_packets_read = %u\n"
             "   in_offset = %u\n"
             "}\n",
+            /* in_fp = %p\n" */
 
              ctx->progname, str,
              ctx->opt_input_filepath,
@@ -339,7 +339,7 @@ dump_context
              ctx->opt_verbose,
              ctx->input_is_fifo, 
              ctx->output_is_fifo,
-             ctx->in_fp,
+            /* ctx->in_fp, */
              ctx->out_fd,
              ctx->num_packets_read,
              ctx->in_offset);
