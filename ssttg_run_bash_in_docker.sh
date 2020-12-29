@@ -19,6 +19,7 @@ docker run \
         -v $DIRNAME:/ssttg \
         -v $DIRNAME/testdata:/data \
         -e SSTTG_DEV_ROOT=/ssttg \
+        -e TEST_SOURCE_FILE_PATH=/ssttg/sstt_testclip_20_sec.mp4 \
         -w /ssttg \
         ssttg \
         bash

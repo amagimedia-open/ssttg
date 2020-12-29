@@ -24,6 +24,7 @@ OPT_OUTPUT_FILEPATH=""
 OPT_DEBUG_FILEPATH="$G_MAPPED_ROOT_PATH/err_dbg.txt"
 OPT_AUTH_FILEPATH=""
 OPT_CONFIG_FILEPATH="$G_DEF_CONFIG_FILEPATH"
+OPT_DURATION=""
 
 #----[temp files and termination]--------------------------------------------
 
@@ -85,6 +86,14 @@ OPTIONS
           input_media_file_path, packetized with timestamps and transcribed
           to text
         this is optional. default is $OPT_OP.
+        +------------+----------------------------------------+
+        | operation  |  options ([] => optional)              |
+        +------------+----------------------------------------+
+        | gencfg     |  none                                  |
+        | pcm        |  -i, [-o], [-d], [-x], [-D]            |
+        | packpcm    |  -i, [-o], [-d], [-x], [-D]            |
+        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c]  |
+        +------------+----------------------------------------+
 
     -i  $G_MAPPED_ROOT_PATH/.../input_media_file_path
         A .mp4 or .ts file or any other format recognized by ffmpeg.
@@ -123,6 +132,10 @@ OPTIONS
         This is optional. If enabled it is preferable to specify this as
         the first option.
 
+    -D  HH:MM:SS
+        Restrics audio from input_media_file_path to the first #secs.
+        This is optional.
+
     -h
         Displays this help and quits.
         This is optional.
@@ -141,7 +154,7 @@ EOD
 export PATH=$PATH:$DIRNAME
 export PYTHONPATH=$DIRNAME
 
-TEMP=`getopt -o "O:i:o:d:a:c:xh" -n "$0" -- "$@"`
+TEMP=`getopt -o "O:i:o:d:a:c:D:xh" -n "$0" -- "$@"`
 eval set -- "$TEMP"
 
 while true 
@@ -153,6 +166,7 @@ do
         -d) OPT_DEBUG_FILEPATH="$2"; shift 2;;
         -a) OPT_AUTH_FILEPATH="$2"; shift 2;;
         -c) OPT_CONFIG_FILEPATH="$2"; shift 2;;
+        -D) OPT_DURATION="$2"; shift 2;;
         -x) set -x; shift 1;;
         -h) usage; exit 0;;
 		--) shift ; break ;;
@@ -233,6 +247,16 @@ then
     fi
 fi
 
+if [[ -n $OPT_DURATION ]]
+then
+    if [[ ! $OPT_DURATION =~ ^[0-9][0-9]:[0-9][0-9]:[0-9][0-9]$ ]]
+    then
+        error_message "value for -D option not in the form HH:MM:SS"
+        exit 1
+    fi
+    OPT_DURATION="-to $OPT_DURATION"
+fi
+
 
 #-----------------------------------------------------------
 
@@ -250,11 +274,12 @@ case $OPT_OP in
         #+-----------------------+
 
         ffmpeg \
-            -re \
             -i $OPT_INPUT_FILEPATH \
+            $OPT_DURATION \
             -vn \
             -acodec pcm_s16le -ac 1 -ar 16k \
             -f s16le \
+            -y \
             $OPT_OUTPUT_FILEPATH \
             2>$OPT_DEBUG_FILEPATH
         ;;
@@ -268,8 +293,8 @@ case $OPT_OP in
 
         ffmpeg \
             -loglevel quiet \
-            -re \
             -i $OPT_INPUT_FILEPATH \
+            $OPT_DURATION \
             -vn \
             -acodec pcm_s16le -ac 1 -ar 16k \
             -f s16le \
@@ -304,6 +329,7 @@ case $OPT_OP in
             -loglevel quiet \
             -re \
             -i $OPT_INPUT_FILEPATH \
+            $OPT_DURATION \
             -vn \
             -acodec pcm_s16le -ac 1 -ar 16k \
             -f s16le \

@@ -30,12 +30,23 @@ trap 'fnxOnEnd;' 0 1 2 3 6 9 11
 
 export PATH=$PATH:$SSTTG_DEV_ROOT
 
+if [[ ! -f $TEST_SOURCE_FILE_PATH ]]
+then
+    error_message "$TEST_SOURCE_FILE_PATH not present"
+    exit 2
+fi
+
+info_message "output can be verified IN HOST through"
+info_message "ffplay -autoexit -ar 16k -f s16le $DIRNAME/out.pcm"
+
 set -x
 
 # -x \
 ssttg.sh \
-    -O gencfg \
-    -o $DIRNAME/out_cfg.ini \
+    -O pcm \
+    -i $TEST_SOURCE_FILE_PATH \
+    -o $DIRNAME/out.pcm \
     -d $DIRNAME/out_dbg.txt
 
 set +x
+
