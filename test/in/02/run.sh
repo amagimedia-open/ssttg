@@ -51,6 +51,7 @@ set -x
 # -x \
 ssttg.sh \
     -O pcm \
+    -s 5 \
     -i $TEST_SOURCE_FILE_PATH \
     -o $DIRNAME/out.pcm \
     -d $DIRNAME/out_dbg.txt

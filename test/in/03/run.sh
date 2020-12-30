@@ -49,6 +49,7 @@ set -x
 ssttg.sh \
     -v \
     -O packpcm \
+    -s 5 \
     -i $TEST_SOURCE_FILE_PATH \
     -o $DIRNAME/out.packpcm \
     -d $DIRNAME/out_dbg.txt

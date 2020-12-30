@@ -26,6 +26,8 @@ OPT_AUTH_FILEPATH=""
 OPT_CONFIG_FILEPATH="$G_DEF_CONFIG_FILEPATH"
 OPT_DURATION=""
 OPT_VERBOSE=0
+OPT_VERBOSE_ON_TTY=0
+OPT_ADD_SILENCE_SEC=0
 
 #----[temp files and termination]--------------------------------------------
 
@@ -89,12 +91,12 @@ OPTIONS
         this is optional. default is $OPT_OP.
         +------------+----------------------------------------------+
         | operation  |  options ([] => optional)                    |
-        +------------+----------------------------------------------+
-        | gencfg     |  none                                        |
-        | pcm        |  -i, [-o], [-d], [-x], [-D]                  |
-        | packpcm    |  -i, [-o], [-d], [-x], [-D], [-v]            |
-        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c], [-v]  |
-        +------------+----------------------------------------------+
+        +------------+----------------------------------------------------+
+        | gencfg     |  none                                              |
+        | pcm        |  -i, [-o], [-d], [-x], [-D]                        |
+        | packpcm    |  -i, [-o], [-d], [-x], [-D], [-v]                  |
+        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c], [-v], [-t]  |
+        +------------+----------------------------------------------------+
 
     -i  $G_MAPPED_ROOT_PATH/.../input_media_file_path
         A .mp4 or .ts file or any other format recognized by ffmpeg.
@@ -142,6 +144,15 @@ OPTIONS
         applicable only for 'packpcm' and 'transcribe' operations.
         this is optional.
 
+    -t
+        dump verbose messages also on tty. 
+        applicable only for the 'transcribe' operation.
+        this is optional.
+
+    -s  #secs
+        add silence of #secs to the input.
+        this is optional.
+
     -h
         Displays this help and quits.
         This is optional.
@@ -160,7 +171,7 @@ EOD
 export PATH=$PATH:$DIRNAME
 export PYTHONPATH=$DIRNAME
 
-TEMP=`getopt -o "O:i:o:d:a:c:D:xvh" -n "$0" -- "$@"`
+TEMP=`getopt -o "O:i:o:d:a:c:D:s:xvth" -n "$0" -- "$@"`
 eval set -- "$TEMP"
 
 while true 
@@ -173,8 +184,10 @@ do
         -a) OPT_AUTH_FILEPATH="$2"; shift 2;;
         -c) OPT_CONFIG_FILEPATH="$2"; shift 2;;
         -D) OPT_DURATION="$2"; shift 2;;
+        -s) OPT_ADD_SILENCE_SEC=$2; shift 2;;
         -x) set -x; shift 1;;
         -v) OPT_VERBOSE=1; shift 1;;
+        -t) OPT_VERBOSE_ON_TTY=1; shift 1;;
         -h) usage; exit 0;;
 		--) shift ; break ;;
 		*) echo "Internal error!" ; exit 1 ;;
@@ -264,6 +277,11 @@ then
     OPT_DURATION="-to $OPT_DURATION"
 fi
 
+if ((OPT_VERBOSE==0))
+then
+   OPT_VERBOSE_ON_TTY=0
+fi
+
 #-----------------------------------------------------------
 
 if [[ ! -p $G_NAMED_PIPE_PATH ]]
@@ -277,6 +295,16 @@ then
     info_message "creation of $G_NAMED_PIPE_PATH succeeded"
 fi
 
+FFMPEG_ADD_SILENCE_OPTS=""
+if ((OPT_ADD_SILENCE_SEC > 0))
+then
+    #https://superuser.com/a/579110
+    FFMPEG_ADD_SILENCE_OPTS="
+        -f lavfi 
+        -t $OPT_ADD_SILENCE_SEC 
+        -i anullsrc=r=16000 
+        -filter_complex [0:a][1:a]concat=n=2:v=0:a=1"
+fi
 
 case $OPT_OP in
 
@@ -293,7 +321,7 @@ case $OPT_OP in
 
         ffmpeg \
             -i $OPT_INPUT_FILEPATH \
-            $OPT_DURATION \
+            $FFMPEG_ADD_SILENCE_OPTS \
             -vn \
             -acodec pcm_s16le -ac 1 -ar 16k \
             -f s16le \
@@ -302,43 +330,37 @@ case $OPT_OP in
             2>$OPT_DEBUG_FILEPATH
         ;;
 
-
     packpcm)
 
         #+---------------------+
         #| dump packetized pcm |
         #+---------------------+
 
-        ((OPT_VERBOSE)) && \
-            { info_message "starting audio_depacketizer ..."; }
-        cat $G_NAMED_PIPE_PATH |\
-        audio_depacketizer \
-            -v \
-            -z \
-            1>$OPT_OUTPUT_FILEPATH \
-            2>$OPT_DEBUG_FILEPATH &
-        BG_PID=$!
+        DEPACK_VERBOSITY=""
+        ((OPT_VERBOSE)) && { DEPACK_VERBOSITY="-vv"; }
 
         ((OPT_VERBOSE)) && \
-            { info_message "starting ffmpeg|audio_packetizer ..."; }
-        sleep 2
+            { echo "starting ffmpeg|pack|depack ..." > /dev/tty; }
+
         ffmpeg \
             -loglevel quiet \
+            -re \
             -i $OPT_INPUT_FILEPATH \
+            $FFMPEG_ADD_SILENCE_OPTS \
             $OPT_DURATION \
             -vn \
             -acodec pcm_s16le -ac 1 -ar 16k \
             -f s16le \
             pipe:1 |\
         audio_packetizer \
-            -z > $G_NAMED_PIPE_PATH
+            -z |\
+        audio_depacketizer \
+            $DEPACK_VERBOSITY \
+            -z \
+            -f \
+            1>$OPT_OUTPUT_FILEPATH 2>$OPT_DEBUG_FILEPATH
 
         stty sane
-
-        ((OPT_VERBOSE)) && \
-            { info_message "sleeping for 2 seconds ..."; }
-        sleep 2     # TODO: make it event based
-        kill_pid $BG_PID
         ;;
 
 
@@ -349,47 +371,64 @@ case $OPT_OP in
         #+-----------------------+
 
         DEPACK_VERBOSITY=""
-        DEPACK_VERBOSITY="-vv"
+        TRANSCRIBE_VERBOSITY=""
 
-        ((OPT_VERBOSE)) && \
-            { info_message "starting audio_depacketizer|transcriber ..."; }
-        cat $G_NAMED_PIPE_PATH |\
-        audio_depacketizer \
-            $DEPACK_VERBOSITY \
-            -z \
-            -f |\
-        python3 ssttg.py \
-            -i $G_NAMED_PIPE_PATH \
-            -o $OPT_OUTPUT_FILEPATH \
-            -c $OPT_CONFIG_FILEPATH \
-            -a $OPT_AUTH_FILEPATH \
-            -f \
-            -v \
-            2>$OPT_DEBUG_FILEPATH &
-        BG_PID=$!
+        ((OPT_VERBOSE)) && { DEPACK_VERBOSITY="-vv"; }
+        ((OPT_VERBOSE)) && { TRANSCRIBE_VERBOSITY="-v"; }
 
-        ((OPT_VERBOSE)) && \
-            { info_message "starting ffmpeg|audio_packetizer ..."; }
-        sleep 2
-        ffmpeg \
-            -loglevel quiet \
-            -re \
-            -i $OPT_INPUT_FILEPATH \
-            $OPT_DURATION \
-            -vn \
-            -acodec pcm_s16le -ac 1 -ar 16k \
-            -f s16le \
-            pipe:1 |\
-        audio_packetizer \
-            -z > $G_NAMED_PIPE_PATH
+        (
+            ((OPT_VERBOSE_ON_TTY)) && \
+                { echo "starting transcriber ..." > /dev/tty; }
 
-        stty sane
+            python3 ssttg.py \
+                $TRANSCRIBE_VERBOSITY \
+                -i $G_NAMED_PIPE_PATH \
+                -o $OPT_OUTPUT_FILEPATH \
+                -c $OPT_CONFIG_FILEPATH \
+                -a $OPT_AUTH_FILEPATH \
+                -f &
+            BG_PID=$!
 
-        ((OPT_VERBOSE)) && \
-            { info_message "end of input"; \
-              info_message "sleeping for 5 seconds ..."; }
-        sleep 5     # TODO: make it event based
-        kill_pid $BG_PID
+            if ((OPT_VERBOSE_ON_TTY))
+            then
+                echo "starting tail ..." > /dev/tty
+                sleep 2
+                stdbuf -o 0 tail --pid=$BG_PID -f $OPT_DEBUG_FILEPATH 1>/dev/tty & 
+            fi
+
+            ((OPT_VERBOSE_ON_TTY)) && \
+                { echo "starting ffmpeg|pack|depack ..." > /dev/tty; }
+            sleep 2
+
+            ffmpeg \
+                -loglevel quiet \
+                -re \
+                -i $OPT_INPUT_FILEPATH \
+                $FFMPEG_ADD_SILENCE_OPTS \
+                $OPT_DURATION \
+                -vn \
+                -acodec pcm_s16le -ac 1 -ar 16k \
+                -f s16le \
+                pipe:1 |\
+            audio_packetizer \
+                -z |\
+            audio_depacketizer \
+                $DEPACK_VERBOSITY \
+                -z \
+                -f \
+                1> $G_NAMED_PIPE_PATH
+
+            stty sane
+
+            ((OPT_VERBOSE_ON_TTY)) && \
+                { echo "end of input" > /dev/tty; \
+                  echo "sleeping for 2 seconds ..." > /dev/tty; }
+            sleep 2     # TODO: make it event based
+
+            kill_pid $BG_PID
+
+        ) 2>$OPT_DEBUG_FILEPATH
+
         ;;
 esac
 

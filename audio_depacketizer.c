@@ -12,6 +12,7 @@
 #include <getopt.h> 
 #include <assert.h> 
 #include <libgen.h> 
+#include <time.h> 
 
 //---------------------------------------------------------------------------
 
@@ -533,9 +534,12 @@ run
         
         if (ctx->opt_verbose_count > 1)
         {
+            time_t t;
+            time(&t);
+
             fprintf (stderr, 
-                     "%s:info:pkt#=%08u, sig=%08x, ts=%016lu, sz=%08u\n", 
-                     ctx->progname, ctx->num_packets_read, sig, ts, size);
+                     "%s:info:time=%u, pkt#=%08u, sig=%08x, ts=%016lu, sz=%08u\n", 
+                     ctx->progname, (unsigned) t, ctx->num_packets_read, sig, ts, size);
             fflush (stderr);
         }
 

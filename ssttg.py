@@ -14,6 +14,7 @@ import getopt
 import stat
 import configparser
 from   collections import OrderedDict
+from   datetime import datetime
 
 import google
 from google.cloud import speech
@@ -530,6 +531,9 @@ class GeneratorClass ():
         data_len = audio_header_get_data_length (data)
         running_pts = (self.stream.restart_counter * G_STREAMING_LIMIT) + self.stream.consumed_ms
         #eprint (f"add map[{running_pts}] = {pts}")
+        #https://stackoverflow.com/a/415519/1029379
+        if (pts > 0):
+            eprint (f"received-data: time={datetime.now().time()}, pts={pts}, len={data_len}")
         
         self.stream.audio_pts_map_lock.acquire ()
         self.stream.audio_pts_map[running_pts] = pts
