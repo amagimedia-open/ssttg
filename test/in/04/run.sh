@@ -53,6 +53,7 @@ set -x
 
 # -x \
 ssttg.sh \
+    -v \
     -i $TEST_SOURCE_FILE_PATH \
     -o $DIRNAME/out.srt \
     -d $DIRNAME/out_dbg.txt \

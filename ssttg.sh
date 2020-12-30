@@ -25,6 +25,7 @@ OPT_DEBUG_FILEPATH="$G_MAPPED_ROOT_PATH/err_dbg.txt"
 OPT_AUTH_FILEPATH=""
 OPT_CONFIG_FILEPATH="$G_DEF_CONFIG_FILEPATH"
 OPT_DURATION=""
+OPT_VERBOSE=0
 
 #----[temp files and termination]--------------------------------------------
 
@@ -86,14 +87,14 @@ OPTIONS
           input_media_file_path, packetized with timestamps and transcribed
           to text
         this is optional. default is $OPT_OP.
-        +------------+----------------------------------------+
-        | operation  |  options ([] => optional)              |
-        +------------+----------------------------------------+
-        | gencfg     |  none                                  |
-        | pcm        |  -i, [-o], [-d], [-x], [-D]            |
-        | packpcm    |  -i, [-o], [-d], [-x], [-D]            |
-        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c]  |
-        +------------+----------------------------------------+
+        +------------+----------------------------------------------+
+        | operation  |  options ([] => optional)                    |
+        +------------+----------------------------------------------+
+        | gencfg     |  none                                        |
+        | pcm        |  -i, [-o], [-d], [-x], [-D]                  |
+        | packpcm    |  -i, [-o], [-d], [-x], [-D], [-v]            |
+        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c], [-v]  |
+        +------------+----------------------------------------------+
 
     -i  $G_MAPPED_ROOT_PATH/.../input_media_file_path
         A .mp4 or .ts file or any other format recognized by ffmpeg.
@@ -136,6 +137,11 @@ OPTIONS
         Restrics audio from input_media_file_path to the first #secs.
         This is optional.
 
+    -v
+        enable verbosity. 
+        applicable only for 'packpcm' and 'transcribe' operations.
+        this is optional.
+
     -h
         Displays this help and quits.
         This is optional.
@@ -154,7 +160,7 @@ EOD
 export PATH=$PATH:$DIRNAME
 export PYTHONPATH=$DIRNAME
 
-TEMP=`getopt -o "O:i:o:d:a:c:D:xh" -n "$0" -- "$@"`
+TEMP=`getopt -o "O:i:o:d:a:c:D:xvh" -n "$0" -- "$@"`
 eval set -- "$TEMP"
 
 while true 
@@ -168,6 +174,7 @@ do
         -c) OPT_CONFIG_FILEPATH="$2"; shift 2;;
         -D) OPT_DURATION="$2"; shift 2;;
         -x) set -x; shift 1;;
+        -v) OPT_VERBOSE=1; shift 1;;
         -h) usage; exit 0;;
 		--) shift ; break ;;
 		*) echo "Internal error!" ; exit 1 ;;
@@ -302,7 +309,8 @@ case $OPT_OP in
         #| dump packetized pcm |
         #+---------------------+
 
-        info_message "starting audio_depacketizer ..."
+        ((OPT_VERBOSE)) && \
+            { info_message "starting audio_depacketizer ..."; }
         cat $G_NAMED_PIPE_PATH |\
         audio_depacketizer \
             -v \
@@ -311,7 +319,8 @@ case $OPT_OP in
             2>$OPT_DEBUG_FILEPATH &
         BG_PID=$!
 
-        info_message "starting ffmpeg|audio_packetizer ..."
+        ((OPT_VERBOSE)) && \
+            { info_message "starting ffmpeg|audio_packetizer ..."; }
         sleep 2
         ffmpeg \
             -loglevel quiet \
@@ -326,7 +335,8 @@ case $OPT_OP in
 
         stty sane
 
-        info_message "sleeping for 2 seconds ..."
+        ((OPT_VERBOSE)) && \
+            { info_message "sleeping for 2 seconds ..."; }
         sleep 2     # TODO: make it event based
         kill_pid $BG_PID
         ;;
@@ -341,7 +351,8 @@ case $OPT_OP in
         DEPACK_VERBOSITY=""
         DEPACK_VERBOSITY="-vv"
 
-        info_message "starting audio_depacketizer|transcriber ..."
+        ((OPT_VERBOSE)) && \
+            { info_message "starting audio_depacketizer|transcriber ..."; }
         cat $G_NAMED_PIPE_PATH |\
         audio_depacketizer \
             $DEPACK_VERBOSITY \
@@ -357,7 +368,8 @@ case $OPT_OP in
             2>$OPT_DEBUG_FILEPATH &
         BG_PID=$!
 
-        info_message "starting ffmpeg|audio_packetizer ..."
+        ((OPT_VERBOSE)) && \
+            { info_message "starting ffmpeg|audio_packetizer ..."; }
         sleep 2
         ffmpeg \
             -loglevel quiet \
@@ -371,8 +383,11 @@ case $OPT_OP in
         audio_packetizer \
             -z > $G_NAMED_PIPE_PATH
 
-        info_message "end of input"
-        info_message "sleeping for 5 seconds ..."
+        stty sane
+
+        ((OPT_VERBOSE)) && \
+            { info_message "end of input"; \
+              info_message "sleeping for 5 seconds ..."; }
         sleep 5     # TODO: make it event based
         kill_pid $BG_PID
         ;;

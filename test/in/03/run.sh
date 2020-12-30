@@ -47,6 +47,7 @@ set -x
 
 # -x \
 ssttg.sh \
+    -v \
     -O packpcm \
     -i $TEST_SOURCE_FILE_PATH \
     -o $DIRNAME/out.packpcm \
