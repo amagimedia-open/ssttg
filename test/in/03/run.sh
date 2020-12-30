@@ -30,6 +30,13 @@ trap 'fnxOnEnd;' 0 1 2 3 6 9 11
 
 export PATH=$PATH:$SSTTG_DEV_ROOT
 
+if [[ ${1-""} = "clean" ]]
+then
+    info_message "cleaning up ..."
+    rm_other_than $TMP1 $DIRNAME run.sh out_dbg.gold
+    exit 0
+fi
+
 if [[ ! -f $TEST_SOURCE_FILE_PATH ]]
 then
     error_message "$TEST_SOURCE_FILE_PATH not present"

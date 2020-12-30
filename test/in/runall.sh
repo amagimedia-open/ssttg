@@ -3,6 +3,9 @@
 set -u
 #set -x
 
+OPT_CLEAN=""
+[[ ${1-""} = "clean" ]] && { OPT_CLEAN="clean"; }
+
 (
 cat <<EOD
 $SSTTG_DEV_ROOT/test/in/01/run.sh
@@ -13,7 +16,7 @@ while read test_script_path
 do
     [[ $test_script_path =~ ^# ]] && { continue; }
     echo "executing $test_script_path" | boxes -d stone >&2
-    $test_script_path
+    $test_script_path $OPT_CLEAN
     echo
 done
 

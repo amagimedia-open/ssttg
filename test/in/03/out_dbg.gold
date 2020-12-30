@@ -1,0 +1,29 @@
+info:audio_depacketizer:before run:ctx{
+   <<options>>
+   opt_input_filepath = 
+   opt_output_filepath = 
+   opt_eof_on_zero_size = 1
+   opt_forward_mode = 0
+   opt_verbose = 1
+   input_is_fifo = 0
+   output_is_fifo = 0
+   <<state>>
+   out_fd = 1
+   num_packets_read = 0
+   in_offset = 0
+}
+audio_depacketizer:info:breaking out on 0 size
+info:audio_depacketizer:before end:ctx{
+   <<options>>
+   opt_input_filepath = 
+   opt_output_filepath = 
+   opt_eof_on_zero_size = 1
+   opt_forward_mode = 0
+   opt_verbose = 1
+   input_is_fifo = 0
+   output_is_fifo = 0
+   <<state>>
+   out_fd = 1
+   num_packets_read = 626
+   in_offset = 648750
+}

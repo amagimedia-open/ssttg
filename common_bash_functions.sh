@@ -325,6 +325,26 @@ function get_bare_filename
     echo ${_basename%.*}
 }
 
+function rm_other_than
+{
+    local _tmp="$1"
+    shift 
+    local _folder="$1"
+    shift 
+
+    > $_tmp
+    for i in "$@"
+    do
+        echo "$i" >> $_tmp
+    done
+
+    if pushd $_folder > /dev/null
+    then
+        rm -vf `ls $_folder | cat | grep -v -F -f $_tmp`
+        popd > /dev/null
+    fi
+}
+
 #----------------------------------------------------------------------------
 # RELATING TO FOLDERS
 

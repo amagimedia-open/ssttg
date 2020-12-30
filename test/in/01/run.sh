@@ -30,6 +30,13 @@ trap 'fnxOnEnd;' 0 1 2 3 6 9 11
 
 export PATH=$PATH:$SSTTG_DEV_ROOT
 
+if [[ ${1-""} = "clean" ]]
+then
+    info_message "cleaning up ..."
+    rm_other_than $TMP1 $DIRNAME run.sh
+    exit 0
+fi
+
 set -x
 
 # -x \
