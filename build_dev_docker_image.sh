@@ -6,4 +6,4 @@ set -x
 
 find test -name 'out*' -exec rm -vf {} \;
 
-docker build -t ssttg -f dockerfile.txt .
+docker build -t ssttg_dev -f dockerfile_dev.txt .

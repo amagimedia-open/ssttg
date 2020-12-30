@@ -64,3 +64,9 @@ ssttg.sh \
 set +x
 
 
+#if ! diff $DIRNAME/out.srt $DIRNAME/out.srt.gold >/dev/null 2>&1
+#then
+#    error_message "output differing from $DIRNAME/out.srt.gold"
+#    exit 2
+#fi
+

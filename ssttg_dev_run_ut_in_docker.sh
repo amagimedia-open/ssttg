@@ -17,13 +17,13 @@ docker run \
         --rm \
         --privileged \
         --network host \
-        --name ssttg_c \
+        --name ssttg_dev_c \
         -v $DIRNAME:/ssttg \
         -e SSTTG_DEV_ROOT=/ssttg \
         -e TEST_SOURCE_FILE_PATH=/ssttg/sstt_testclip_20_sec.mp4 \
         -w /ssttg \
-        ssttg \
-        bash
+        ssttg_dev \
+        /ssttg/run_ut.sh
 
 # in docker do the following
 # ./test/in/runall.sh
