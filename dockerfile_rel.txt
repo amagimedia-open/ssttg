@@ -50,5 +50,24 @@ RUN apt-get install -y moreutils
 #| PROJECT FILES |
 #+---------------+
 
-# mapped using -v
+RUN  mkdir /ssttg
+
+COPY \
+  audio_depacketizer.c          \
+  audio_packetizer.c            \
+  common_bash_functions.sh      \
+  readme.txt                    \
+  run_ut.sh                     \
+  sstt_testclip_20_sec.mp4      \
+  ssttg.py                      \
+  ssttg.sh                      \
+  ssttg_def_cfg.ini             \
+  /ssttg/
+
+COPY test/ /ssttg/
+
+RUN  gcc -o /ssttg/audio_packetizer   /ssttg/audio_packetizer.c
+RUN  gcc -o /ssttg/audio_depacketizer /ssttg/audio_depacketizer.c
+
+RUN tree /ssttg
 

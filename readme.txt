@@ -1,7 +1,11 @@
 Streaming speech to text transcription using google apis.
 Version 1.0
 
-(A) To build docker image used in development
++-----------------+
+| For development |
++-----------------+
+
+(A) To build docker image 
 
     $ ./build_dev_docker_image.sh
 
@@ -10,5 +14,16 @@ Version 1.0
     $ ./ssttg_dev_run_ut_in_docker.sh
     $ tree ./test   # see results here
 
++-------------+
+| For release |
++-------------+
 
+(A) To build docker image 
+
+    $ ./build_rel_docker_image.sh
+
+(B) Have a look at the following
+
+    test/ex/01/run.sh
+    test/ex/02/run.sh
 

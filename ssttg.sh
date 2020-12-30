@@ -5,7 +5,7 @@ set -u
 
 #----[globals]------------------------------------------------------------------------
 
-DIRNAME=$(dirname $(readlink -e $0))
+DIRNAME=$(readlink -e $(dirname $0))
 MODNAME=$(basename $0)
 
 G_MAPPED_ROOT_PATH=/data
@@ -169,7 +169,6 @@ EOD
 #----------------------------------------------------------------------------
 
 export PATH=$PATH:$DIRNAME
-export PYTHONPATH=$DIRNAME
 
 TEMP=`getopt -o "O:i:o:d:a:c:D:s:xvth" -n "$0" -- "$@"`
 eval set -- "$TEMP"
@@ -380,7 +379,7 @@ case $OPT_OP in
             ((OPT_VERBOSE_ON_TTY)) && \
                 { echo "starting transcriber ..." > /dev/tty; }
 
-            python3 ssttg.py \
+            python3 $DIRNAME/ssttg.py \
                 $TRANSCRIBE_VERBOSITY \
                 -i $G_NAMED_PIPE_PATH \
                 -o $OPT_OUTPUT_FILEPATH \
