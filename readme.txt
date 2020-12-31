@@ -22,7 +22,7 @@ Version 1.0
 
     $ ./build_rel_docker_image.sh
 
-(B) Have a look at the following
+(B) Have a look-at/try the following
 
     test/ex/01/run.sh
     test/ex/02/run.sh

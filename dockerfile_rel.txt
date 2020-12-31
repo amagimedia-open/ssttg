@@ -62,6 +62,9 @@ COPY \
   ssttg.py                      \
   ssttg.sh                      \
   ssttg_def_cfg.ini             \
+  ssttg_dev_run_ut_clean_in_docker.sh   \
+  ssttg_dev_run_ut_in_docker.sh         \
+  ssttg_help.sh                         \
   /ssttg/
 
 COPY test/ /ssttg/
