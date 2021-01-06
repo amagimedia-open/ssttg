@@ -14,6 +14,10 @@ Version 1.0
     $ ./ssttg_dev_run_ut_in_docker.sh
     $ tree ./test   # see results here
 
+(C) Have a look-at/try the following
+
+    test/ex/03/run_rel.sh
+
 +-------------+
 | For release |
 +-------------+
@@ -26,4 +30,5 @@ Version 1.0
 
     test/ex/01/run.sh
     test/ex/02/run.sh
+    test/ex/03/run_rel.sh
 

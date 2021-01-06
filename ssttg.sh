@@ -28,6 +28,7 @@ OPT_DURATION=""
 OPT_VERBOSE=0
 OPT_VERBOSE_ON_TTY=0
 OPT_ADD_SILENCE_SEC=0
+OPT_BASH_DEBUG=0
 
 #----[temp files and termination]--------------------------------------------
 
@@ -88,15 +89,21 @@ OPTIONS
           here pcm data in the pcm_s16le format is extracted from the 
           input_media_file_path, packetized with timestamps and transcribed
           to text
+        * transcribepcm
+          here pcm data in the pcm_s16le format is pumped via stdin. this
+          is then packetized with timestamps and transcribed to text
+
         this is optional. default is $OPT_OP.
-        +------------+----------------------------------------------+
-        | operation  |  options ([] => optional)                    |
-        +------------+----------------------------------------------------+
-        | gencfg     |  none                                              |
-        | pcm        |  -i, [-o], [-d], [-x], [-D]                        |
-        | packpcm    |  -i, [-o], [-d], [-x], [-D], [-v]                  |
-        | transcribe |  -i, [-o], [-d], [-x], [-D], -a, [-c], [-v], [-t]  |
-        +------------+----------------------------------------------------+
+
+        +---------------+---------------------------------------------------------+
+        | operation     |  options ([] => optional)                               |
+        +---------------+---------------------------------------------------------+
+        | gencfg        |  none                                                   |
+        | pcm           |  -i, [-o], [-d], [-x], [-D]                             |
+        | packpcm       |  -i, [-o], [-d], [-x], [-D], [-v], [-s]                 |
+        | transcribe    |  -i, [-o], [-d], [-x], [-D], [-v], [-s], -a, [-c], [-t] |
+        | transcribepcm |  -i, [-o], [-d], [-x],       [-v],       -a, [-c]       |
+        +---------------+---------------------------------------------------------+
 
     -i  $G_MAPPED_ROOT_PATH/.../input_media_file_path
         A .mp4 or .ts file or any other format recognized by ffmpeg.
@@ -105,14 +112,15 @@ OPTIONS
     -o  $G_MAPPED_ROOT_PATH/.../output_file_path
         The format is dependent in the operation specified (see -O option).
         This is optional. defaults are as follows:
-        +------------+-------------------+
-        | operation  | output_file_name  |
-        +------------+-------------------+
-        | gencfg     | ssttg_def_cfg.ini |
-        | pcm        | out.s16le.pcm     |
-        | packpcm    | out.s16le.packpcm |
-        | transcribe | out.srt           |
-        +------------+-------------------+
+        +---------------+-------------------+
+        | operation     | output_file_name  |
+        +---------------+-------------------+
+        | gencfg        | ssttg_def_cfg.ini |
+        | pcm           | out.s16le.pcm     |
+        | packpcm       | out.s16le.packpcm |
+        | transcribe    | out.srt           |
+        | transcribepcm | out.srt           |
+        +---------------+-------------------+
 
     -d  $G_MAPPED_ROOT_PATH/.../err_dbg_file_path
         Debug and error messages are stored here.
@@ -120,15 +128,14 @@ OPTIONS
 
     -a  $G_MAPPED_ROOT_PATH/.../gcp_auth_filepath.json
         Google security credentials file.
-        This is mandatory if the operation is 'transcribe' and ignored 
-        otherwise.
+        This is mandatory if the operation is 'transcribe' or 'transcribepcm'
+        and ignored otherwise.
 
     -c  $G_MAPPED_ROOT_PATH/.../transcribe_config_file_path.ini
         The configuration file used for control of the transcription
         algorithm. 
-        This is used if the operation is 'transcribe'.
-        This is optional (i.e. optional even if the operation is 'transcribe'
-        in which case it uses a default configuration 'coded' internally).
+        This is optional. (i.e. there is a default configuration 'coded' 
+        internally).
 
     -x
         Enables 'set -x' for this script.
@@ -141,12 +148,10 @@ OPTIONS
 
     -v
         enable verbosity. 
-        applicable only for 'packpcm' and 'transcribe' operations.
         this is optional.
 
     -t
         dump verbose messages also on tty. 
-        applicable only for the 'transcribe' operation.
         this is optional.
 
     -s  #secs
@@ -184,7 +189,7 @@ do
         -c) OPT_CONFIG_FILEPATH="$2"; shift 2;;
         -D) OPT_DURATION="$2"; shift 2;;
         -s) OPT_ADD_SILENCE_SEC=$2; shift 2;;
-        -x) set -x; shift 1;;
+        -x) set -x; OPT_BASH_DEBUG=1; shift 1;;
         -v) OPT_VERBOSE=1; shift 1;;
         -t) OPT_VERBOSE_ON_TTY=1; shift 1;;
         -h) usage; exit 0;;
@@ -194,27 +199,30 @@ do
 done
 
 case $OPT_OP in
-    gencfg|pcm|packpcm|transcribe)
+    gencfg|pcm|packpcm|transcribe|transcribepcm)
         ;;
     *)
         error_message "invalid value for -O option"
         exit 1
 esac
 
-if [[ $OPT_OP != "gencfg" ]]
-then
-    if [[ -n $OPT_INPUT_FILEPATH ]]
-    then
-        if [[ ! -f $OPT_INPUT_FILEPATH ]]
+case $OPT_OP in
+    gencfg|transcribepcm)
+        ;;
+    *)
+        if [[ -n $OPT_INPUT_FILEPATH ]]
         then
-            error_message "file $OPT_INPUT_FILEPATH not present"
+            if [[ ! -f $OPT_INPUT_FILEPATH ]]
+            then
+                error_message "file $OPT_INPUT_FILEPATH not present"
+                exit 1
+            fi
+        else
+            error_message "-i option not specified"
             exit 1
         fi
-    else
-        error_message "-i option not specified"
-        exit 1
-    fi
-fi
+        ;;
+esac
 
 if [[ -z $OPT_OUTPUT_FILEPATH ]]
 then
@@ -228,7 +236,7 @@ then
         packpcm)
             OPT_OUTPUT_FILEPATH="$G_MAPPED_ROOT_PATH/out.s16le.packpcm"
             ;;
-        transcribe)
+        transcribe|transcribepcm)
             OPT_OUTPUT_FILEPATH="$G_MAPPED_ROOT_PATH/out.srt"
             ;;
     esac
@@ -245,26 +253,27 @@ then
     exit 1
 fi
 
-if [[ $OPT_OP = "transcribe" ]]
-then
-    if [[ -n $OPT_AUTH_FILEPATH ]]
-    then
-        if [[ ! -f $OPT_AUTH_FILEPATH ]]
+case $OPT_OP in
+    transcribe|transcribepcm)
+        if [[ -n $OPT_AUTH_FILEPATH ]]
         then
-            error_message "file $OPT_AUTH_FILEPATH not present"
+            if [[ ! -f $OPT_AUTH_FILEPATH ]]
+            then
+                error_message "file $OPT_AUTH_FILEPATH not present"
+                exit 1
+            fi
+        else
+            error_message "-a option not specified"
             exit 1
         fi
-    else
-        error_message "-a option not specified"
-        exit 1
-    fi
 
-    if [[ ! -f $OPT_CONFIG_FILEPATH ]]
-    then
-        error_message "file $OPT_CONFIG_FILEPATH not present"
-        exit 1
-    fi
-fi
+        if [[ ! -f $OPT_CONFIG_FILEPATH ]]
+        then
+            error_message "file $OPT_CONFIG_FILEPATH not present"
+            exit 1
+        fi
+        ;;
+esac
 
 if [[ -n $OPT_DURATION ]]
 then
@@ -376,6 +385,8 @@ case $OPT_OP in
         ((OPT_VERBOSE)) && { TRANSCRIBE_VERBOSITY="-v"; }
 
         (
+            ((OPT_BASH_DEBUG)) && { set -x; }
+
             ((OPT_VERBOSE_ON_TTY)) && \
                 { echo "starting transcriber ..." > /dev/tty; }
 
@@ -422,6 +433,52 @@ case $OPT_OP in
             ((OPT_VERBOSE_ON_TTY)) && \
                 { echo "end of input" > /dev/tty; \
                   echo "sleeping for 2 seconds ..." > /dev/tty; }
+            sleep 2     # TODO: make it event based
+
+            kill_pid $BG_PID
+
+        ) 2>$OPT_DEBUG_FILEPATH
+
+        ;;
+
+
+    transcribepcm)
+
+        #+-----------------------+
+        #| perform transcription |
+        #+-----------------------+
+
+        DEPACK_VERBOSITY=""
+        TRANSCRIBE_VERBOSITY=""
+
+        ((OPT_VERBOSE)) && { DEPACK_VERBOSITY="-vv"; }
+        ((OPT_VERBOSE)) && { TRANSCRIBE_VERBOSITY="-v"; }
+
+        (
+            ((OPT_BASH_DEBUG)) && { set -x; }
+
+            python3 $DIRNAME/ssttg.py \
+                $TRANSCRIBE_VERBOSITY \
+                -i $G_NAMED_PIPE_PATH \
+                -o $OPT_OUTPUT_FILEPATH \
+                -c $OPT_CONFIG_FILEPATH \
+                -a $OPT_AUTH_FILEPATH \
+                -f &
+            BG_PID=$!
+
+            sleep 2
+
+            # pcm is supplied to audio_packetizer via stdin
+
+            stdbuf -o 0 cat |\
+            audio_packetizer \
+                -z |\
+            audio_depacketizer \
+                $DEPACK_VERBOSITY \
+                -z \
+                -f \
+                1> $G_NAMED_PIPE_PATH
+
             sleep 2     # TODO: make it event based
 
             kill_pid $BG_PID
